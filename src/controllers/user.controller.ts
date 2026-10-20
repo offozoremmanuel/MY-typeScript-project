@@ -1,38 +1,46 @@
 import type { Request, Response, NextFunction } from "express";
 import { UserModel } from "../models/user.model";
 
-const parseId = (value: string): number | null => {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
-};
+// Turn the ID from the URL into a number. Return null when it is not valid.
+function getUserId(idFromUrl: string): number | null {
+  const id = Number(idFromUrl);
 
-// POST /api/users
+  if (!Number.isInteger(id) || id < 1) {
+    return null;
+  }
+
+  return id;
+}
+
+// POST /api/users - Create a new user
 export const createUser = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> => {
+) => {
   try {
-    const { email, name } = req.body ?? {};
+    const email = req.body?.email;
+    const name = req.body?.name;
 
-    if (!email || typeof email !== "string") {
+    if (typeof email !== "string" || email.length === 0) {
       res.status(400).json({ error: "A valid email is required" });
       return;
     }
 
-    const user = await UserModel.create({ email, name });
-    res.status(201).json(user);
+    const newUser = await UserModel.create({ email, name });
+    res.status(201).json(newUser);
   } catch (error) {
+    // Pass errors to the error-handling middleware.
     next(error);
   }
 };
 
-// GET /api/users
+// GET /api/users - Get every user
 export const getUsers = async (
   _req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> => {
+) => {
   try {
     const users = await UserModel.findAll();
     res.json(users);
@@ -41,21 +49,23 @@ export const getUsers = async (
   }
 };
 
-// GET /api/users/:id
+// GET /api/users/:id - Get one user
 export const getUser = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> => {
+) => {
   try {
-    const id = parseId(req.params.id as string);
+    const id = getUserId(req.params.id as string);
+
     if (id === null) {
       res.status(400).json({ error: "Invalid user id" });
       return;
     }
 
     const user = await UserModel.findById(id);
-    if (!user) {
+
+    if (user === null) {
       res.status(404).json({ error: "User not found" });
       return;
     }
@@ -66,35 +76,39 @@ export const getUser = async (
   }
 };
 
-// PUT /api/users/:id
+// PUT /api/users/:id - Update a user
 export const updateUser = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> => {
+) => {
   try {
-    const id = parseId(req.params.id as string);
+    const id = getUserId(req.params.id as string);
+
     if (id === null) {
       res.status(400).json({ error: "Invalid user id" });
       return;
     }
 
-    const { email, name } = req.body ?? {};
-    const user = await UserModel.update(id, { email, name });
-    res.json(user);
+    const email = req.body?.email;
+    const name = req.body?.name;
+    const updatedUser = await UserModel.update(id, { email, name });
+
+    res.json(updatedUser);
   } catch (error) {
     next(error);
   }
 };
 
-// DELETE /api/users/:id
+// DELETE /api/users/:id - Delete a user
 export const deleteUser = async (
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> => {
+) => {
   try {
-    const id = parseId(req.params.id as string);
+    const id = getUserId(req.params.id as string);
+
     if (id === null) {
       res.status(400).json({ error: "Invalid user id" });
       return;
